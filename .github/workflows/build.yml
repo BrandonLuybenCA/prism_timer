@@ -22,6 +22,12 @@ jobs:
           cp -r prism_temp/.gitignore . 2>/dev/null || true
           rm -rf prism_temp
 
+      - name: Copy Custom iOS Files
+        run: |
+          mkdir -p ios/Runner
+          cp ios/Runner/Info.plist ios/Runner/Info.plist 2>/dev/null || true
+          cp ios/Runner/Runner.entitlements ios/Runner/Runner.entitlements 2>/dev/null || true
+
       - name: Generate App Icons
         run: |
           brew install imagemagick
@@ -94,17 +100,21 @@ jobs:
           cp -r build/ios/iphoneos/Runner.app Payload/
           zip -r Prism.ipa Payload
 
-      - name: Upload to transfer.sh (Direct Download)
+      - name: Upload to file.io (Direct Download)
         run: |
           echo "=============================================="
-          echo "📱 UPLOADING TO transfer.sh..."
+          echo "📱 UPLOADING TO file.io..."
           echo "=============================================="
-          curl --upload-file Prism.ipa https://transfer.sh/Prism.ipa
+          RESPONSE=$(curl -F "file=@Prism.ipa" https://file.io)
+          LINK=$(echo $RESPONSE | grep -o '"link":"[^"]*"' | cut -d'"' -f4)
           echo ""
           echo "=============================================="
-          echo "✅ Copy the URL above and open in Safari on your iPhone"
-          echo "📂 Save to Files, then import into your sideloader"
-          echo "⚠️ Link expires in 14 days"
+          echo "✅ DIRECT DOWNLOAD LINK:"
+          echo "$LINK"
+          echo ""
+          echo "📲 Open this link in Safari on your iPhone."
+          echo "📂 Save to Files, then import into your sideloader."
+          echo "🔔 Live Activities will show timer on Lock Screen!"
           echo "=============================================="
 
       - name: Upload IPA to GitHub Artifacts (Backup)
