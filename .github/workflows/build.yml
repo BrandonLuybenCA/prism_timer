@@ -1,0 +1,96 @@
+name: Build Prism IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+
+      - name: Create iOS Project
+        run: flutter create --platforms=ios .
+
+      - name: Generate App Icons
+        run: |
+          brew install imagemagick
+          
+          mkdir -p ios/Runner/Assets.xcassets/AppIcon.appiconset
+          cd ios/Runner/Assets.xcassets/AppIcon.appiconset
+          
+          convert -size 1024x1024 xc:transparent \
+            -fill "gradient:cyan-purple" -draw "polygon 512,256 820,717 204,717" \
+            -channel A -evaluate set 80% \
+            -blur 0x20 \
+            -background none -extent 1024x1024 \
+            icon-1024.png
+          
+          convert icon-1024.png -resize 120x120 icon-60@2x.png
+          convert icon-1024.png -resize 180x180 icon-60@3x.png
+          convert icon-1024.png -resize 76x76 icon-76.png
+          convert icon-1024.png -resize 152x152 icon-76@2x.png
+          convert icon-1024.png -resize 40x40 icon-40.png
+          convert icon-1024.png -resize 80x80 icon-40@2x.png
+          convert icon-1024.png -resize 120x120 icon-40@3x.png
+          convert icon-1024.png -resize 29x29 icon-29.png
+          convert icon-1024.png -resize 58x58 icon-29@2x.png
+          convert icon-1024.png -resize 87x87 icon-29@3x.png
+          convert icon-1024.png -resize 20x20 icon-20.png
+          convert icon-1024.png -resize 40x40 icon-20@2x.png
+          convert icon-1024.png -resize 60x60 icon-20@3x.png
+          convert icon-1024.png -resize 167x167 icon-83.5@2x.png
+          
+          cat > Contents.json << 'EOF'
+          {
+            "images" : [
+              {"size" : "20x20", "idiom" : "iphone", "filename" : "icon-20@2x.png", "scale" : "2x"},
+              {"size" : "20x20", "idiom" : "iphone", "filename" : "icon-20@3x.png", "scale" : "3x"},
+              {"size" : "29x29", "idiom" : "iphone", "filename" : "icon-29@2x.png", "scale" : "2x"},
+              {"size" : "29x29", "idiom" : "iphone", "filename" : "icon-29@3x.png", "scale" : "3x"},
+              {"size" : "40x40", "idiom" : "iphone", "filename" : "icon-40@2x.png", "scale" : "2x"},
+              {"size" : "40x40", "idiom" : "iphone", "filename" : "icon-40@3x.png", "scale" : "3x"},
+              {"size" : "60x60", "idiom" : "iphone", "filename" : "icon-60@2x.png", "scale" : "2x"},
+              {"size" : "60x60", "idiom" : "iphone", "filename" : "icon-60@3x.png", "scale" : "3x"},
+              {"size" : "20x20", "idiom" : "ipad", "filename" : "icon-20.png", "scale" : "1x"},
+              {"size" : "20x20", "idiom" : "ipad", "filename" : "icon-20@2x.png", "scale" : "2x"},
+              {"size" : "29x29", "idiom" : "ipad", "filename" : "icon-29.png", "scale" : "1x"},
+              {"size" : "29x29", "idiom" : "ipad", "filename" : "icon-29@2x.png", "scale" : "2x"},
+              {"size" : "40x40", "idiom" : "ipad", "filename" : "icon-40.png", "scale" : "1x"},
+              {"size" : "40x40", "idiom" : "ipad", "filename" : "icon-40@2x.png", "scale" : "2x"},
+              {"size" : "76x76", "idiom" : "ipad", "filename" : "icon-76.png", "scale" : "1x"},
+              {"size" : "76x76", "idiom" : "ipad", "filename" : "icon-76@2x.png", "scale" : "2x"},
+              {"size" : "83.5x83.5", "idiom" : "ipad", "filename" : "icon-83.5@2x.png", "scale" : "2x"},
+              {"size" : "1024x1024", "idiom" : "ios-marketing", "filename" : "icon-1024.png", "scale" : "1x"}
+            ],
+            "info" : {"version" : 1, "author" : "xcode"}
+          }
+          EOF
+
+      - name: Set Bundle ID
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.prism.focus" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleName Prism" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Prism" ios/Runner/Info.plist
+
+      - name: Build Unsigned iOS App
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign
+
+      - name: Package as IPA
+        run: |
+          mkdir Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r Prism.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Prism
+          path: Prism.ipa
